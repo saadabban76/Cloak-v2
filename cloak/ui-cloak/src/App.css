@@ -67,6 +67,8 @@
 
 .App {
   text-align: center;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .App-logo {

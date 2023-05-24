@@ -5,6 +5,8 @@ import usdj from '../assets/usdj.png'
 import sun from '../assets/sun.png'
 import usdt from '../assets/usdt.png'
 import trx from '../assets/trx.png'
+import nft from '../assets/nftOfficial.jpeg'
+import usdd from '../assets/Usdd.png'
 
 export const Tokens = [
     { "name": "TRX", "address": '', "symbol": trx },
@@ -13,13 +15,16 @@ export const Tokens = [
     { "name": "JST", "address": 'TBzrkFBjgzowt7nHkaYkbLBfcLTvg2qe6a', "symbol": just },
     { "name": "USDJ", "address": 'TLxqc8tQpftjyW8n4TpNTEhdzPK8vSgeRA', "symbol": usdj },
     { "name": "SUN", "address": 'TWkUvS8uP7GiLxqeiUhwC1CLpc8TuVhgcm', "symbol": sun },
-    { "name": "USDT", "address": 'TDZDd58a44n5Bvg7pFpcdWhZpv7XsT9PsU', "symbol": usdt }
+    { "name": "USDT", "address": 'TDZDd58a44n5Bvg7pFpcdWhZpv7XsT9PsU', "symbol": usdt },
+    { "name": "USDD", "address": 'TPnkR78LUP7uWUR8NpTBG9zEaCDqzd2cjM', "symbol": usdd },
+    { "name": "NFTS", "address": '', "symbol": nft }
 ]
 
-
-// Tether (USDT)
-// BitTorrent (BTT)
-// WINk (WIN)
-// JUST (JST)
-// SUN Token (SUN)
-// JustStable USD (USDJ)
+ // const TRCABI = [
+  //   "function balanceOf(address) view returns (uint)",
+  //   "function transfer(address to, uint amount) returns (bool)",
+  //   "function symbol() external view returns (string memory)",
+  //   "function name() external view returns (string memory)",
+  //   "function approve(address owner, uint256 amount) external returns (bool)",
+  //   "function allowance(address owner, address spender) view returns (uint)",
+  // ];

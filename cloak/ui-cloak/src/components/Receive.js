@@ -1,193 +1,188 @@
-import React from 'react'
-import { useState, useEffect } from 'react'
-import { keccak256 } from 'ethers/lib/utils.js';
-import EllipticCurve from 'elliptic';
-import { AiOutlineCopy } from "react-icons/ai";
+import { useState } from "react";
+import { keccak256 } from "ethers/lib/utils.js";
+import EllipticCurve from "elliptic";
 import { GiKangaroo } from "react-icons/gi";
 import { AiOutlineArrowsAlt, AiOutlineShrink } from "react-icons/ai";
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-const ec = new EllipticCurve.ec('secp256k1');
-
-
+import "react-toastify/dist/ReactToastify.css";
+import copy from "../assets/copykey.jpg";
+import kangaroo from "../assets/kangaroo.png";
+import { downloadFile } from "../helpers/DownloadFile";
+import { db } from "../config/firebase.js"
+import { getDocs, collection, deleteDoc, doc } from "firebase/firestore";
+import { toast } from "react-toastify";
+const ec = new EllipticCurve.ec("secp256k1");
 
 const Receive = () => {
 
-  const [rootspendingkey, setrootspendingkey] = useState('')
-  const [privatekey, setprivatekey] = useState('')
-  const [hide, sethide] = useState(true)
-  const [matching, setmatchingkey] = useState(false)
-  const [err, seterr] = useState(false)
-  const [reveal, setreveal] = useState(false)
-  const [founded, setfounded] = useState('founded')
-  const [iscopied, setiscopied] = useState('Copy PrivateKey')
-  let zkeys = []
 
-  const contractAddress = 'TG94Q4jtD184Bwzf2Pc2kmHz8twvacjyM5'
-  const { tronWeb } = window
+  const [rootprivatekey, setrootprivatekey] = useState("");
+  const [privatekey, setprivatekey] = useState("");
+  const [hide, sethide] = useState(true);
+  const [err, seterr] = useState(false);
+  const [reveal, setreveal] = useState(false);
+  const [founded, setfounded] = useState("");
+  const [iscopied, setiscopied] = useState("Copy");
+  const [id, setId] = useState('');
+  var spendingkey;
 
 
-  useEffect(() => {
+  const pubkeys = collection(db, "pubKeys");
+  const MatchingKey = async () => {
+    let logs;
 
-    const fetchData = async () => {
-      try {
-        const contract = await tronWeb.contract().at(contractAddress);
-        const limit = await contract.getLimit().call();
-        console.log(limit.toString())
-
-        for (let i = 0; i < limit.toString(); i++) {
-          await contract.keys(i).call((err, result) => {
-            zkeys.push(`T${result.ss.replace('0x', '')}04${result.x.slice(2)}${result.y.slice(2)}`)
-            localStorage.setItem('ephkeys', JSON.stringify(zkeys))
-
-          });
-
-        }
-   
-
-      } catch (e) {
-        console.error(e);
-      }
+    try {
+      const data = await getDocs(pubkeys);
+      logs = data.docs.map((doc) => ({
+        ...doc.data(),
+        id: doc.id,
+      }));
+    } catch (err) {
+      console.error(err);
+      seterr(err.message)
     }
-    fetchData();
 
 
-  }, []);
+
+    logs.forEach((e) => {
+      const ephPublicKey = ec.keyFromPublic(e.keys.slice(5), "hex");
+      const Sharedsecret = spendingkey.derive(ephPublicKey.getPublic()); //
+      const Hashedsecret = ec.keyFromPrivate(keccak256(Sharedsecret.toArray()));
+      const ss = "T" + Sharedsecret.toArray()[0].toString(16).padStart(1, "0") + Sharedsecret.toArray()[31].toString(16);
+      console.log(ss.toString().slice(1, 5), e.keys.slice(1, 5).toString())
 
 
-  const generaterootspendingkey = () => {
-    if (!tronWeb) {
-      toast('Please initialze tronlink')
+      if (ss.toString().slice(1, 5) === e.keys.slice(1, 5).toString()) {
+        setId(e.id)
+        const _key = spendingkey.getPrivate().add(Hashedsecret.getPrivate());
+        const pk = _key.mod(ec.curve.n);
+        setprivatekey(pk.toString(16, 32));
+        setreveal(true);
+        setrootprivatekey("");
+        setfounded("Matched");
+      }
       return
-  }
-    setmatchingkey(true)
-
-    var Spendingkey;
-    if (rootspendingkey === '') {
-      Spendingkey = ec.keyFromPrivate(localStorage.getItem('DontRevealMe'), 'hex');
-
-    }
-
-    else {
-      Spendingkey = ec.keyFromPrivate(rootspendingkey, 'hex');
-    }
-
-    var ephPublicKey;
-    var RSharedsecret;
-    var RHashedsecret;
-    var _sharedSecret;
-
-    const ephkeys = localStorage.getItem('ephkeys');
-    const registry = JSON.parse(ephkeys);
-    console.log(registry)
-
-    registry.forEach((z) => {
-
-      ephPublicKey = ec.keyFromPublic(z.slice(3), 'hex');
-      RSharedsecret = Spendingkey.derive(ephPublicKey.getPublic()); // 
-      RHashedsecret = ec.keyFromPrivate(keccak256(RSharedsecret.toArray()));
-      _sharedSecret = '0x' + RSharedsecret.toArray()[0].toString(16).padStart(2, '0')
-      // console.log(z.slice(1, 3).toString() , _sharedSecret.toString().slice(2, 4))
-
-
-      try {
-        if (_sharedSecret.toString().slice(2, 4) === z.slice(1, 3).toString()) {
-          const _key = Spendingkey.getPrivate().add(RHashedsecret.getPrivate());
-          const pk = _key.mod(ec.curve.n);
-          console.log('Private key to open wallet', pk.toString(16, 32))
-          setprivatekey(pk.toString(16, 32))
-          setreveal(true)
-          setrootspendingkey('')
-          setfounded('founded')
-
-        }
-        return
-
-      }
-
-      catch (e) {
-        seterr(e.message)
-      }
-
 
     })
-    setmatchingkey(false)
 
+
+  }
+
+
+  const generaterootprivatekey = async () => {
+
+
+    if (rootprivatekey === "") {
+      spendingkey = ec.keyFromPrivate(sessionStorage.getItem("DRM key"), "hex");
+    } else {
+      spendingkey = ec.keyFromPrivate(rootprivatekey, "hex");
+    }
+
+    MatchingKey()
+
+
+    if (founded === "Matched") {
+      toast.success('Matched')
+    }
+
+  };
+
+
+  const removingKey = async () => {
+    console.log(id)
+    const ephDoc = doc(db, "pubKeys", id);
+    await deleteDoc(ephDoc);
 
   }
 
   const copykey = () => {
-    navigator.clipboard.writeText(privatekey)
-    setiscopied('Copied')
-  }
+    navigator.clipboard.writeText(privatekey);
+    setiscopied("Copied");
+    downloadFile(privatekey, "Cloak-privatekey.txt");
+
+    /// remove the key from firebase database
+
+    removingKey()
+  };
 
   return (
     <>
-      <div className="py-2 flex space-x-4 justify-center ml-11">
+      <div className="ml-4 flex items-center justify-center space-x-4 py-2 ">
         {hide !== true && (
-          <input
-            type="text"
-            className="bg-[#fffafa] font-semibold text-gray-700 montserrat-subtitle outline-none border rounded-md p-1 px-2 border-1 border-gray-400 w-[340px]"
-            value={rootspendingkey}
-            onChange={(e) => {
-              setrootspendingkey(e.target.value);
-            }}
-            placeholder="DontRevealMe key (optional)"
-          />
+          <div
+            className="border-1 flex w-[100%] items-center
+          space-x-2 rounded-md border border-gray-300 bg-[#ffffff] 
+            px-3 py-2 hover:shadow-sm"
+          >
+            <input
+              type="text"
+              className="montserrat-subtitle w-full rounded-md
+            px-1 text-[0.9rem] font-semibold text-gray-600
+             outline-none"
+              value={rootprivatekey}
+              onChange={(e) => {
+                setrootprivatekey(e.target.value);
+              }}
+              placeholder="DontRevealMe key (optional)"
+            />
+          </div>
         )}
         {hide && (
-          <p className="text-gray-500 p-1 px-2 font-semibold montserrat-small ">
-            Expand to enter the saved Key ( optional )
+          <p className="montserrat-small ml-6 p-1 px-2 font-semibold text-gray-500 ">
+            Expand to enter the saved Key
           </p>
         )}
         {/* expand icon (toggle of input button) */}
         {hide ? (
           <AiOutlineArrowsAlt
             className="cursor-pointer text-gray-500"
-            size={25}
+            size={22}
             onClick={() => sethide(!hide)}
           />
         ) : (
           <AiOutlineShrink
             className="cursor-pointer text-gray-500"
-            size={25}
+            size={22}
             onClick={() => sethide(!hide)}
           />
         )}
       </div>
 
       {/* Match key */}
-      <div className="flex justify-center pt-4">
+      <div className="ml-1 flex  items-center justify-center px-2 pt-2 ">
         <div
-          className="flex items-center cursor-pointer space-x-1 border-1 p-1 text-white bg-[#FF5757] hover:shadow-xl px-6 text-center rounded-md hover:bg-[#FDF0EF] hover:text-[#FF5757] font-semibold hover:border-white border-red-500 border"
-          onClick={generaterootspendingkey}
+          className="flex cursor-pointer items-center justify-center space-x-1 rounded-3xl  border-red-500 bg-[#FF5757] p-1 px-6 text-center font-semibold text-[#fff7f7] hover:border-white hover:shadow-md"
+          onClick={generaterootprivatekey}
         >
-          <GiKangaroo size={26} />
-          <h2 className='montserrat-small'>Match Key</h2>
+          <GiKangaroo size={30} />
+          {/* <h2 className='montserrat-small'>Match</h2> */}
         </div>
       </div>
 
       {/* message */}
-      <div className="p-4  text-red-400 font-semibold">
-        {matching === true ? <p>Running.....</p> : false}
+      <div className="p-4  font-semibold text-red-400">
         {reveal === true ? (
-          <div className="flex ml-60  justify-center space-x-3 montserrat-small">
+          <div className="montserrat-small ml-60  flex justify-center space-x-3">
             <p>{iscopied}</p>
-            <AiOutlineCopy size={25} className='cursor-pointer text-gray-500 ' onClick={copykey} />
+            <img
+              height={20}
+              width={20}
+              src={copy}
+              onClick={copykey}
+              className="cursor-pointer"
+              alt=""
+            />
           </div>
         ) : (
           <>
-            <p>{founded !== 'founded' && 'Key doesnt exist'}</p>
-            <p>{err && 'Error : ' + err}</p>
+            <div className=" flex items-center justify-center font-semibold text-[#FF5757]">
+              {err && <img height={30} width={30} src={kangaroo} alt="" />}{" "}
+              <p className="montserrat-subtitle">{err}</p>
+            </div>
           </>
         )}
       </div>
-
-
-
-
     </>
-  )
-}
+  );
+};
 
-export default Receive
+export default Receive;
